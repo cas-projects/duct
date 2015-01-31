@@ -8,4 +8,6 @@ Just to be a simple command line utility to do quick smoke tests of multi-CAS no
 
 If this test succeeds, then we effectively have proven that the distributed ticket registry has been set up and deployed correctly and that there are no connectivity issues between CAS nodes.
 
+This utility will require CAS server nodes to enable `REST` module.
+
 > No code yet. Thinking to implement this in Groovy. We'll see...
