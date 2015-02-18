@@ -13,7 +13,7 @@ This utility requires CAS server nodes to enable `REST` module.
 ## Prerequisites
 
 * Latest JDK and Groovy (always a good idea to have the latest installed)
-* 2 CAS nodes with a distributed TicketRegistry configures (EhCache, Hazelcast, etc.) and REST endpoints enabled
+* 2 CAS nodes with a distributed TicketRegistry configured (EhCache, Hazelcast, etc.) and REST endpoints enabled
 
   > Note: for CAS 3.5.x, the easiest way to enable REST is to install [CAS REST addon](https://github.com/unicon-cas-addons/cas35-addon-rest)
 
