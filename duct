@@ -1,0 +1,85 @@
+#!/usr/bin/env groovy
+
+@Grapes([@Grab(group = 'org.fusesource.jansi', module = 'jansi', version = '1.11'),
+        @Grab(group = 'com.github.groovy-wslite', module = 'groovy-wslite', version = '1.1.0')]
+)
+import org.fusesource.jansi.AnsiConsole
+import static org.fusesource.jansi.Ansi.*
+import static org.fusesource.jansi.Ansi.Color.*
+import wslite.rest.*
+
+final CAS1_URL = 'https://dk.example.org:8143/cas'
+final CAS2_URL = 'https://dk.example.org:8243/cas'
+final SERVICE = 'https://www.google.com'
+
+try {
+    AnsiConsole.systemInstall()
+
+    final CONFIG = new ConfigSlurper().parse(new File('/etc/duct/duct.conf').toURL())
+    validateConfig(CONFIG)
+    final CAS1 = new RESTClient(CONFIG.cas.url.node1)
+    final CAS2 = new RESTClient(CONFIG.cas.url.node2)
+
+    println(ansi().fg(WHITE).a("==> duct: Authenticating and obtaining TGT from ").fg(YELLOW).a("$CONFIG.cas.url.node1 ").fg(WHITE).a("..."))
+    def tgtResp = CAS1.post(path: '/v1/tickets', connectTimeout: CONFIG.cas.rest.connection.timeout) {
+        urlenc username: CONFIG.cas.username, password: CONFIG.cas.password
+    }
+
+    println(ansi().fg(WHITE).a("==> duct: Obtaining ST for service ").fg(YELLOW).a("$CONFIG.cas.service ").fg(WHITE).a("from ").fg(YELLOW).a("$CONFIG.cas.url.node1 ").fg(WHITE).a("..."))
+    def stResp = CAS1.post(path: "/v1/tickets/${tgtResp.headers.Location.find('TGT-.*')}", connectTimeout: CONFIG.cas.rest.connection.timeout) {
+        urlenc service: CONFIG.cas.service
+    }
+    final ST = stResp.text
+    println(ansi().fg(WHITE).a("==> duct: Got ST ").fg(GREEN).a(ST))
+
+    println(ansi().fg(WHITE).a("==> duct: Validating ST at ").fg(YELLOW).a("$CONFIG.cas.url.node2 ").fg(WHITE).a("..."))
+    def validationResp = CAS2.get(path: "/serviceValidate?service=$CONFIG.cas.service&ticket=$ST", connectTimeout: CONFIG.cas.rest.connection.timeout)
+
+    println()
+    println("===============================================================================================")
+
+    def rootNode = new XmlSlurper().parseText(validationResp.text)
+    if (rootNode.authenticationSuccess.size() > 0) {
+        printOutcome(true, ST, CONFIG.cas.url.node1, CONFIG.cas.url.node2)
+        System.exit(0)
+    }
+
+    printOutcome(false, ST, CONFIG.cas.url.node1, CONFIG.cas.url.node2)
+    System.exit(1)
+}
+catch (Throwable throwable) {
+    printError(throwable)
+    System.exit(1)
+}
+
+def validateConfig(config) {
+  final validUsername = ((config.cas.username.getClass() == String) && (config.cas.username.size() > 0))
+  final validPassword = ((config.cas.password.getClass() == String) && (config.cas.password.size() > 0))
+  final validService = ((config.cas.service.getClass() == String) && (config.cas.service.size() > 0))
+  final validTimeout = ((config.cas.rest.connection.timeout.getClass() == Integer) && (config.cas.rest.connection.timeout > 0))
+  final validNode1 = ((config.cas.url.node1.getClass() == String) && (config.cas.url.node1.size() > 0))
+  final validNode2 = ((config.cas.url.node2.getClass() == String) && (config.cas.url.node2.size() > 0))
+  final validConfig = (validUsername && validPassword && validService && validTimeout && validNode1 && validNode2)
+
+  if(!validConfig) {
+    println(ansi().fg(RED).a("ERROR: Misconfiguration. Please check if /etc/duct/duct.conf is configured correctly."))
+    println()
+    System.exit(1)
+  }
+}
+
+def printOutcome(success, st, cas1, cas2) {
+    def color = success ? GREEN : RED
+    def outcome = success ? 'SUCCESS:' : 'FAILURE:'
+    println(ansi().fg(color).a(outcome))
+    println(ansi().fg(WHITE).a("ST: ").fg(color).a(st))
+    println(ansi().fg(WHITE).a("Creation node: ").fg(color).a(cas1))
+    println(ansi().fg(WHITE).a("Validation node: ").fg(color).a(cas2))
+    println(ansi().fg(WHITE).a("==============================================================================================="))
+    println()
+}
+
+def printError(e) {
+    println(ansi().fg(RED).a("ERROR: $e.message"))
+    println()
+}
