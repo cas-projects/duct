@@ -8,10 +8,6 @@ import static org.fusesource.jansi.Ansi.*
 import static org.fusesource.jansi.Ansi.Color.*
 import wslite.rest.*
 
-final CAS1_URL = 'https://dk.example.org:8143/cas'
-final CAS2_URL = 'https://dk.example.org:8243/cas'
-final SERVICE = 'https://www.google.com'
-
 try {
     AnsiConsole.systemInstall()
 
