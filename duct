@@ -20,6 +20,10 @@ try {
     def tgtResp = CAS1.post(path: '/v1/tickets', connectTimeout: CONFIG.cas.rest.connection.timeout) {
         urlenc username: CONFIG.cas.username, password: CONFIG.cas.password
     }
+    if(tgtResp.headers.Location == null) {
+      printError(new IllegalStateException("CAS server is possibly misconfigured. Check if the CAS node has REST module enabled."))
+      System.exit(1)
+    }
 
     println(ansi().fg(WHITE).a("==> duct: Obtaining ST for service ").fg(YELLOW).a("$CONFIG.cas.service ").fg(WHITE).a("from ").fg(YELLOW).a("$CONFIG.cas.url.node1 ").fg(WHITE).a("..."))
     def stResp = CAS1.post(path: "/v1/tickets/${tgtResp.headers.Location.find('TGT-.*')}", connectTimeout: CONFIG.cas.rest.connection.timeout) {
