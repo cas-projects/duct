@@ -29,7 +29,7 @@ try {
     def stResp = CAS1.post(path: "/v1/tickets/${tgtResp.headers.Location.find('TGT-.*')}", connectTimeout: CONFIG.cas.rest.connection.timeout) {
         urlenc service: CONFIG.cas.service
     }
-    final ST = stResp.text
+    final ST = stResp.contentAsString
     println(ansi().fg(WHITE).a("==> duct: Got ST ").fg(GREEN).a(ST))
 
     println(ansi().fg(WHITE).a("==> duct: Validating ST at ").fg(YELLOW).a("$CONFIG.cas.url.node2 ").fg(WHITE).a("..."))
