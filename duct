@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 
-@Grapes([@Grab(group = 'org.fusesource.jansi', module = 'jansi', version = '1.11'),
+@Grapes([@Grab(group = 'org.fusesource.jansi', module = 'jansi', version = '1.15'),
         @Grab(group = 'com.github.groovy-wslite', module = 'groovy-wslite', version = '1.1.0')]
 )
 import org.fusesource.jansi.AnsiConsole
@@ -20,6 +20,11 @@ try {
     def tgtResp = CAS1.post(path: '/v1/tickets', connectTimeout: CONFIG.cas.rest.connection.timeout) {
         urlenc username: CONFIG.cas.username, password: CONFIG.cas.password
     }
+
+    if(CONFIG.debug) {
+      printDebug('TGT response headers ==>', tgtResp.headers)
+    }
+
     if(tgtResp.headers.Location == null) {
       printError(new IllegalStateException("CAS server is possibly misconfigured. Check if the CAS node has REST module enabled."))
       System.exit(1)
@@ -29,11 +34,16 @@ try {
     def stResp = CAS1.post(path: "/v1/tickets/${tgtResp.headers.Location.find('TGT-.*')}", connectTimeout: CONFIG.cas.rest.connection.timeout) {
         urlenc service: CONFIG.cas.service
     }
+
     final ST = stResp.contentAsString
     println(ansi().fg(WHITE).a("==> duct: Got ST ").fg(GREEN).a(ST))
 
     println(ansi().fg(WHITE).a("==> duct: Validating ST at ").fg(YELLOW).a("$CONFIG.cas.url.node2 ").fg(WHITE).a("..."))
     def validationResp = CAS2.get(path: "/serviceValidate?service=$CONFIG.cas.service&ticket=$ST", connectTimeout: CONFIG.cas.rest.connection.timeout)
+
+    if(CONFIG.debug) {
+      printDebug('ST validation response ==>', validationResp.text)
+    }
 
     println()
     println("===============================================================================================")
@@ -82,4 +92,10 @@ def printOutcome(success, st, cas1, cas2) {
 def printError(e) {
     println(ansi().fg(RED).a("ERROR: $e.message"))
     println()
+}
+
+def printDebug(prefix, object) {
+    println()
+    println(ansi().fg(CYAN).a("DEBUG: $prefix $object"))
+    println(ansi().fg(WHITE))
 }
