@@ -1,9 +1,6 @@
 # duct
 (d)istributed (u)nscientific (c)as (t)est
 
-> This project was developed as part of Unicon's [Open Source Support program](https://unicon.net/opensource).
-Professional Support / Integration Assistance for this module is available. For more information [visit](https://unicon.net/opensource/cas).
-
 `duct` is a simple command line utility to do quick smoke tests of multi-CAS nodes deployments. In particular, testing correctness of data sharing between `2` nodes by implementations of distributed ticket registries. The initial version of this program just automates a very simple scenario:
 
 * Authenticate and issue a service ticket on one CAS node
