@@ -8,7 +8,7 @@
 
 If this test succeeds, then we effectively have proven that the distributed ticket registry has been set up and deployed correctly and that there are no connectivity issues between CAS nodes.
 
-This utility requires CAS server nodes to enable `REST` module.
+This utility requires CAS server nodes to enable `REST` module: https://apereo.github.io/cas/6.1.x/protocol/REST-Protocol.html
 
 ## Prerequisites
 
