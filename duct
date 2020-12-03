@@ -7,6 +7,7 @@ import org.fusesource.jansi.AnsiConsole
 import static org.fusesource.jansi.Ansi.*
 import static org.fusesource.jansi.Ansi.Color.*
 import wslite.rest.*
+import java.time.*
 
 try {
     AnsiConsole.systemInstall()
@@ -15,11 +16,25 @@ try {
     validateConfig(CONFIG)
     final CAS1 = new RESTClient(CONFIG.cas.url.node1)
     final CAS2 = new RESTClient(CONFIG.cas.url.node2)
+    
+    def getTgt = {
+      CAS1.post(path: '/v1/tickets', connectTimeout: CONFIG.cas.rest.connection.timeout) {
+        urlenc username: CONFIG.cas.username, password: CONFIG.cas.password
+      }
+    }
+
+    def getSt = {
+      CAS1.post(path: "/v1/tickets/${it.headers.Location.find('TGT-.*')}", connectTimeout: CONFIG.cas.rest.connection.timeout) {
+        urlenc service: CONFIG.cas.service
+      }
+    }
+
+    def validateSt = {
+      CAS2.get(path: "/serviceValidate?service=$CONFIG.cas.service&ticket=$it", connectTimeout: CONFIG.cas.rest.connection.timeout)
+    }
 
     println(ansi().fg(WHITE).a("==> duct: Authenticating and obtaining TGT from ").fg(YELLOW).a("$CONFIG.cas.url.node1 ").fg(WHITE).a("..."))
-    def tgtResp = CAS1.post(path: '/v1/tickets', connectTimeout: CONFIG.cas.rest.connection.timeout) {
-        urlenc username: CONFIG.cas.username, password: CONFIG.cas.password
-    }
+    def tgtResp = CONFIG.debug ? measureAndPrintTiming('Authentication', getTgt) : getTgt()
 
     if(CONFIG.debug) {
       printDebug('TGT response headers ==>', tgtResp.headers)
@@ -31,15 +46,14 @@ try {
     }
 
     println(ansi().fg(WHITE).a("==> duct: Obtaining ST for service ").fg(YELLOW).a("$CONFIG.cas.service ").fg(WHITE).a("from ").fg(YELLOW).a("$CONFIG.cas.url.node1 ").fg(WHITE).a("..."))
-    def stResp = CAS1.post(path: "/v1/tickets/${tgtResp.headers.Location.find('TGT-.*')}", connectTimeout: CONFIG.cas.rest.connection.timeout) {
-        urlenc service: CONFIG.cas.service
-    }
+    
+    def stResp = CONFIG.debug ? measureAndPrintTiming('Issue Service Ticket', tgtResp, getSt) : getSt(tgtResp)
 
     final ST = stResp.contentAsString
     println(ansi().fg(WHITE).a("==> duct: Got ST ").fg(GREEN).a(ST))
-
     println(ansi().fg(WHITE).a("==> duct: Validating ST at ").fg(YELLOW).a("$CONFIG.cas.url.node2 ").fg(WHITE).a("..."))
-    def validationResp = CAS2.get(path: "/serviceValidate?service=$CONFIG.cas.service&ticket=$ST", connectTimeout: CONFIG.cas.rest.connection.timeout)
+    
+    def validationResp = CONFIG.debug ? measureAndPrintTiming('Validate Service Ticket', ST, validateSt) : validateSt(ST)
 
     if(CONFIG.debug) {
       printDebug('ST validation response ==>', validationResp.text)
@@ -98,4 +112,13 @@ def printDebug(prefix, object) {
     println()
     println(ansi().fg(CYAN).a("DEBUG: $prefix $object"))
     println(ansi().fg(WHITE))
+}
+
+def measureAndPrintTiming(typeOfCodeToExecute, input = null, Closure codeToExecute) {
+    def start = Instant.now();
+    def ret = codeToExecute(input)
+    def finish = Instant.now();
+    def timeElapsed = Duration.between(start, finish).toMillis();
+    printDebug("Execution time for $typeOfCodeToExecute ==>", "$timeElapsed ms")
+    ret    
 }
